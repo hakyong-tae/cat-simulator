@@ -1,0 +1,14 @@
+{
+  "images": {},
+  "cinematics": {
+    "opening": {
+      "url": "https://agent8-games.verse8.io/0xd3ef14789d9c9c9e22ebdaf6b1f4dbe650e0a9ec-1775723932152/cinematics/cinematic-result-1-1775724993296.mp4",
+      "description": "오프닝 시네마틱: 귀여운 고양이가 아늑한 거실을 뛰어다니는 8초 영상",
+      "metadata": {
+        "duration": "8s",
+        "resolution": "720p",
+        "style": "animated cartoon"
+      }
+    }
+  }
+}

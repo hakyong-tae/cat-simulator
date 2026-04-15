@@ -7,15 +7,235 @@
   <base href="/ee9fd008-19ea-47f8-818d-ea6e17c6cbca/">
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #231F20; }
+    #unity-splash-cover {
+      display: none;
+    }
+
+    /* 톱니바퀴 버튼 위 클릭 감지 영역 */
+    #gear-click-trap {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 60px;
+      height: 60px;
+      z-index: 1000;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    /* 설정 팝업 overlay */
+    #settings-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1001;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+    #settings-overlay.visible {
+      display: flex;
+    }
+    #settings-overlay-box {
+      position: relative;
+      background: #4477D0;
+      border-radius: 16px;
+    }
+    #settings-close-btn {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e83232;
+      color: white;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    #settings-close-btn:hover {
+      background: #c02020;
+    }
+    #settings-close-hint {
+      position: absolute;
+      top: -40px;
+      right: 28px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(0,0,0,0.7);
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #settings-box-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: #fff;
+      font-family: inherit;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    #settings-box-instruction {
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 40px 0;
+    }
+    #settings-box-credit {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0;
+      opacity: 0.85;
+    }
   </style>
 </head>
 <body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <div id="unity-splash-cover"></div>
+
+  <!-- 톱니바퀴 버튼 위 클릭 감지 영역 -->
+  <div id="gear-click-trap"></div>
+
+  <!-- 설정 overlay (크레딧 팝업 가리기) -->
+  <div id="settings-overlay">
+    <div id="settings-overlay-box">
+      <button id="settings-close-btn">✕</button>
+      <div id="settings-close-hint">Double-click X to close</div>
+      <div id="settings-box-content">
+        <p id="settings-box-instruction">Double-click the X button in the top right corner to close</p>
+        <p id="settings-box-credit">Made by Verse8</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var overlay = document.getElementById('settings-overlay');
+      var closeBtn = document.getElementById('settings-close-btn');
+      var isOverlayVisible = false;
+
+      // Unity canvas 클릭을 document 레벨에서 감지 (capture phase)
+      document.addEventListener('mousedown', function(e) {
+        if (isOverlayVisible) return; // overlay가 열려있으면 무시
+
+        var x = e.clientX;
+        var y = e.clientY;
+        var W = window.innerWidth;
+        var H = window.innerHeight;
+
+        // Unity canvas가 렌더링되는 실제 영역 계산
+        // Unity는 maxRatio(24/9), minRatio(9/24)를 적용해 중앙에 letterbox로 표시
+        var maxRatio = 24 / 9;
+        var minRatio = 9 / 24;
+        var winRatio = W / H;
+        var ratio = Math.max(minRatio, Math.min(maxRatio, winRatio));
+        var canvasW, canvasH, canvasLeft, canvasTop;
+        if (winRatio > ratio) {
+          canvasH = H;
+          canvasW = H * ratio;
+        } else {
+          canvasW = W;
+          canvasH = W / ratio;
+        }
+        canvasLeft = (W - canvasW) / 2;
+        canvasTop = (H - canvasH) / 2;
+
+        // 클릭이 canvas 안에 있는지
+        if (x < canvasLeft || x > canvasLeft + canvasW) return;
+        if (y < canvasTop || y > canvasTop + canvasH) return;
+
+        // canvas 내 상대 좌표 (0~1)
+        var relX = (x - canvasLeft) / canvasW;
+        var relY = (y - canvasTop) / canvasH;
+
+        // 우측 상단 톱니바퀴 영역: 스크린샷 기준 우측 상단 ~8% x ~8%
+        var gearRight = 1.0;
+        var gearLeft = 0.88;
+        var gearTop = 0.0;
+        var gearBottom = 0.10;
+
+        if (relX >= gearLeft && relX <= gearRight && relY >= gearTop && relY <= gearBottom) {
+          // 약간 딜레이 후 overlay 표시 (Unity가 팝업 열 시간 주기)
+          setTimeout(function() {
+            overlay.classList.add('visible');
+            isOverlayVisible = true;
+          }, 80);
+        }
+      }, true);
+
+      function resizeOverlayBox() {
+        var W = window.innerWidth;
+        var H = window.innerHeight;
+        var maxRatio = 24 / 9;
+        var minRatio = 9 / 24;
+        var winRatio = W / H;
+        var ratio = Math.max(minRatio, Math.min(maxRatio, winRatio));
+        var canvasW, canvasH;
+        if (winRatio > ratio) {
+          canvasH = H;
+          canvasW = H * ratio;
+        } else {
+          canvasW = W;
+          canvasH = W / ratio;
+        }
+        var box = document.getElementById('settings-overlay-box');
+        box.style.width = (canvasW * 0.85) + 'px';
+        box.style.height = (canvasH * 0.75) + 'px';
+      }
+
+      resizeOverlayBox();
+      window.addEventListener('resize', resizeOverlayBox);
+
+      closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        overlay.classList.remove('visible');
+        isOverlayVisible = false;
+      });
+
+      // overlay 클릭 시 이벤트 Unity로 전달 안되게 차단 (바깥 클릭해도 안닫힘)
+      overlay.addEventListener('mousedown', function(e) {
+        e.stopPropagation();
+      });
+      overlay.addEventListener('pointerdown', function(e) {
+        e.stopPropagation();
+      });
+    })();
+  </script>
+
   <script>
     // PokiSDK Mock
     window.PokiSDK = {
       init: () => Promise.resolve(),
-      gameLoadingStart: () => {},
-      gameLoadingFinished: () => {},
+      gameLoadingStart: () => {
+        // Unity 로딩 시작 시 splash cover 활성화
+        const cover = document.getElementById('unity-splash-cover');
+        if (cover) cover.classList.add('active');
+      },
+      gameLoadingFinished: () => {
+        // Unity splash screen이 끝난 후 약간의 딜레이를 두고 오버레이 제거
+        // Unity splash는 gameLoadingFinished 이후에도 약 3~5초간 표시됨
+        setTimeout(() => {
+          const cover = document.getElementById('unity-splash-cover');
+          if (cover) {
+            cover.classList.remove('active');
+            cover.classList.add('hidden');
+            setTimeout(() => cover.remove(), 600);
+          }
+        }, 5500);
+      },
       gameLoadingProgress: () => {},
       gameplayStart: () => {},
       gameplayStop: () => {},
